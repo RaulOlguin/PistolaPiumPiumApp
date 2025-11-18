@@ -93,12 +93,20 @@ open class GunViewModel(application: Application) : AndroidViewModel(application
         stopGunEffects() // <-- Y esta también
     }
 
-    open fun reload() {
+    open fun reload():Boolean {
+
+        if(isFiringState) {
+            println("Intento de recarga falla cuando se esta disparando")
+            return false
+        }
+
         viewModelScope.launch {
             stopFiring()
             _fireRemainingMs.value = _maxFireDurationMs.value
             _ammo.value = 5
         }
+
+        return true
     }
 
     // FUNCIONES DE EFECTOS

@@ -13,7 +13,6 @@ import cl.pistolapiumpium.ui.theme.PistolaPiumPiumTheme
 import cl.pistolapiumpium.util.ShakeDetector
 import cl.pistolapiumpium.viewmodel.GunViewModel
 
-// La Factory para el ViewModel está perfecta, no la tocamos.
 class GunViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(GunViewModel::class.java)) {
@@ -40,9 +39,11 @@ class MainActivity : ComponentActivity() {
 
 
         shakeDetector = ShakeDetector(this) {
-            viewModel.reload()
+            val reloadSuccessful = viewModel.reload()
+            if (!reloadSuccessful) {
+                println("Intento de recarga bloqueado: el arma se está disparando.")
+            }
         }
-
         setContent {
             PistolaPiumPiumTheme {
                 // La UI se configura de la misma manera

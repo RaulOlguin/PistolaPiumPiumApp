@@ -138,7 +138,7 @@ private val FakeActions = object : GunAppActions {
     override fun onStopFiring() {}
     override fun onSaveConfig(newConfig: cl.pistolapiumpium.data.AppConfig) {}
 
-    override fun onReload() {}
+    override fun onReload(): Boolean = true
 
     override fun onShowSettings() {}
     override fun onDismissSettings() {}

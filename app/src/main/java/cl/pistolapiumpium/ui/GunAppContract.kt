@@ -18,7 +18,7 @@ interface GunAppActions {
     fun onStopFiring()
     fun onSaveConfig(newConfig: AppConfig)
 
-    fun onReload()
+    fun onReload(): Boolean
     fun onShowSettings()
     fun onDismissSettings()
 }
