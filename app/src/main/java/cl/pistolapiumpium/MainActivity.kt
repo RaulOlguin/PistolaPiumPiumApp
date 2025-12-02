@@ -97,8 +97,11 @@ class MainActivity : ComponentActivity() {
 
                     // Define la pantalla del FORO (FORUM)
                     composable(route = AppRoutes.FORUM) {
-                        ForumScreen()
+                        ForumScreen(
+                           onNavigateBack = { navController.popBackStack() }
+                        )
                     }
+
                 }
             }
         }

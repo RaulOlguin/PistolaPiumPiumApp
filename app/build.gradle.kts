@@ -74,4 +74,14 @@ dependencies {
     // --- Android Navigation ---
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
+    // Retrofit para las llamadas a la API
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+    // Convertidor de JSON (Gson). Retrofit usa esto para convertir
+    // automáticamente el texto JSON de la API en objetos de Kotlin.
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Para ver un log detallado de las llamadas de red
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
 }
