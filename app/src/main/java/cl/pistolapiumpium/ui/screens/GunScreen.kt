@@ -3,12 +3,11 @@ package cl.pistolapiumpium.ui.screens
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
-// En: ui/screens/GunScreen.kt
-//package cl.pistolapiumpium.ui.screens
 
 // Añade todos los imports que te pida Android Studio (con Alt+Enter)
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +23,7 @@ import cl.pistolapiumpium.ui.*
 fun GunScreen( // <--- RENOMBRADO AQUÍ
     state: GunAppState,
     actions: GunAppActions,
+    onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // El estado de si el diálogo es visible ahora vive aquí
@@ -38,6 +38,14 @@ fun GunScreen( // <--- RENOMBRADO AQUÍ
         topBar = {
             TopAppBar(
                 title = { Text("Pistola de Juguete 🔫") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) { // Usa la nueva función
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack, // Icono de flecha
+                            contentDescription = "Volver a Home"
+                        )
+                    }
+                },
                 actions = {
                     IconButton(onClick = showSettings) {
                         Icon(
@@ -51,7 +59,7 @@ fun GunScreen( // <--- RENOMBRADO AQUÍ
     ) { paddingValues ->
         Box(modifier = Modifier
             .fillMaxSize()
-            .padding(paddingValues), contentAlignment = Alignment.Center) {
+            .padding(paddingValues)) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 16.dp)) {
@@ -80,7 +88,10 @@ fun GunScreen( // <--- RENOMBRADO AQUÍ
                 onClickStart = actions::onStartFiring,
                 onClickStop = actions::onStopFiring,
                 isGunEmpty = state.isGunEmpty,
-                onClickReload = actions::onReload
+                onClickReload = actions::onReload,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 64.dp)
             )
 
             if (isSettingsVisible) {

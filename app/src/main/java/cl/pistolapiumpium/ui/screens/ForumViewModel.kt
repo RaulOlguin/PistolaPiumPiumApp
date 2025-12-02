@@ -1,15 +1,16 @@
-// En: ui/screens/ForumViewModel.kt
 package cl.pistolapiumpium.ui.screens
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cl.pistolapiumpium.network.ForumApi
 import cl.pistolapiumpium.network.ForumPost
-import cl.pistolapiumpium.network.RetrofitClient
+import cl.pistolapiumpium.network.NewPostRequest
 import kotlinx.coroutines.launch
-
+import java.io.IOException
 
 data class ForumUiState(
     val posts: List<ForumPost> = emptyList(),
@@ -22,22 +23,46 @@ class ForumViewModel : ViewModel() {
     var uiState by mutableStateOf(ForumUiState())
         private set
 
-    // Definimos la URL completa y correcta que nos dio el deploy de Firebase.
-    private val getPostsUrl = "https://getposts-op3ae5k63q-uc.a.run.app"
-
     init {
-        loadPosts()
+        refreshPosts()
     }
 
-    private fun loadPosts() {
+    fun refreshPosts() {
         viewModelScope.launch {
             uiState = uiState.copy(isLoading = true, error = null)
             try {
-                // Aquí está el cambio: llamamos a getPosts() pasándole la URL correcta.
-                val posts = RetrofitClient.instance.getPosts(url = getPostsUrl)
+                val posts = ForumApi.retrofitService.getPosts()
                 uiState = uiState.copy(posts = posts, isLoading = false)
+            } catch (e: IOException) {
+                uiState = uiState.copy(error = "Error de red: ${e.message}", isLoading = false)
+                Log.e("ForumViewModel", "Error de red al obtener posts: ${e.message}")
             } catch (e: Exception) {
-                uiState = uiState.copy(error = e.message, isLoading = false)
+                uiState = uiState.copy(error = "Error inesperado: ${e.message}", isLoading = false)
+                Log.e("ForumViewModel", "Error inesperado al obtener posts: ${e.message}")
+            }
+        }
+    }
+
+    fun createPost(titulo: String, glosa: String, usuario: String) {
+        viewModelScope.launch {
+
+            try {
+                val request = NewPostRequest(titulo, glosa, usuario)
+
+                val response = ForumApi.retrofitService.createPost(postData = request)
+
+                if (response.isSuccessful) {
+                    Log.i("ForumViewModel", "Post creado con éxito: ${response.body()?.message}")
+                    refreshPosts()
+                } else {
+                    val errorBody = response.errorBody()?.string()
+                    uiState = uiState.copy(error = "Error del servidor: $errorBody", isLoading = false)
+                    Log.e("ForumViewModel", "Error al crear el post (servidor): $errorBody")
+                }
+
+            } catch (e: Exception) {
+                uiState = uiState.copy(error = "No se pudo crear el post: ${e.message}", isLoading = false)
+                Log.e("ForumViewModel", "Excepción al crear el post: ${e.message}")
             }
         }
     }

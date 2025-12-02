@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("kotlin-kapt")
+    id("com.google.gms.google-services") version "4.4.2" apply false
+    //id("com.google.gms.google-services")
 }
 
 android {
@@ -83,5 +85,18 @@ dependencies {
 
     // Para ver un log detallado de las llamadas de red
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+
+    implementation("com.google.firebase:firebase-firestore-ktx")
+
+    //firebase bom
+    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+
+    implementation("com.google.firebase:firebase-firestore-ktx")
+
+
+
+
+
+
 
 }

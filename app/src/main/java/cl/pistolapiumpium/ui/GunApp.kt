@@ -9,7 +9,9 @@ import cl.pistolapiumpium.ui.screens.GunScreen
 //          --- La conexión entre el ViewModel y la UI ---        //
 //==================================================================
 @Composable
-fun GunAppRoute(viewModel: GunViewModel) {
+fun GunAppRoute(viewModel: GunViewModel,
+                onNavigateBack: () -> Unit
+    ) {
     // Este Composable se encarga de "traducir" el ViewModel al estado que la UI espera
     val fireRemainingMs by viewModel.fireRemainingMs.collectAsState()
     val maxFireDurationMs by viewModel.maxFireDurationMs.collectAsState()
@@ -36,6 +38,6 @@ fun GunAppRoute(viewModel: GunViewModel) {
     }
 
     //GunApp(state = state, actions = actions)
-    GunScreen(state = state, actions = actions)
+    GunScreen(state = state, actions = actions, onNavigateBack = onNavigateBack)
 }
 

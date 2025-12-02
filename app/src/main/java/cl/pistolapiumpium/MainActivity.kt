@@ -67,9 +67,7 @@ class MainActivity : ComponentActivity() {
             viewModel.reload()
         }
 
-        // ================================================================== //
-        // AQUI ESTÁ EL CAMBIO PRINCIPAL (Paso 7)                             //
-        // ================================================================== //
+
         setContent {
             PistolaPiumPiumTheme {
                 // 1. Crea el controlador de navegación, que recuerda el estado
@@ -91,13 +89,16 @@ class MainActivity : ComponentActivity() {
 
                     // Define la pantalla del ARMA (GUN)
                     composable(route = AppRoutes.GUN) {
-                        // Aquí llamamos al Composable que conecta el ViewModel con la UI
-                        GunAppRoute(viewModel = viewModel)
+                            GunAppRoute(
+                            viewModel = viewModel,
+                            onNavigateBack = { navController.popBackStack() } // <-- ¡LA CONEXIÓN FINAL!
+                        )
                     }
 
                     // Define la pantalla del FORO (FORUM)
                     composable(route = AppRoutes.FORUM) {
                         ForumScreen(
+
                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
