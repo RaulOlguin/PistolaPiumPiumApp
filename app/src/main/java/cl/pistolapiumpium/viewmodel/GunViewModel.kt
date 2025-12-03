@@ -1,11 +1,11 @@
-// GunViewModel.kt
+// GunViewModel.kt (Versión Final Simplificada)
 
 package cl.pistolapiumpium.viewmodel
 
-import android.Manifest // ✅ 1. Import para el permiso de CÁMARA
+import android.Manifest
 import android.app.Application
 import android.content.Context
-import android.content.pm.PackageManager // ✅ 2. Import para comprobar permisos
+import android.content.pm.PackageManager
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraManager
 import android.media.MediaPlayer
@@ -13,38 +13,32 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import androidx.core.content.ContextCompat // ✅ 3. Import para comprobar permisos de forma fácil
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cl.pistolapiumpium.R
 import cl.pistolapiumpium.data.AppConfig
 import cl.pistolapiumpium.data.AppDatabase
+import cl.pistolapiumpium.ui.GunAppState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 open class GunViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application.applicationContext)
     private val configDao = db.configDao()
 
-    // --- StateFlows sin cambios ---
-    private val _ammo = MutableStateFlow(5)
-    val ammo: StateFlow<Int> = _ammo.asStateFlow()
-
-    private val _maxFireDurationMs = MutableStateFlow(3000L)
-    open val maxFireDurationMs: StateFlow<Long> = _maxFireDurationMs.asStateFlow()
-
-    private val _fireRemainingMs = MutableStateFlow(_maxFireDurationMs.value)
-    open val fireRemainingMs: StateFlow<Long> = _fireRemainingMs.asStateFlow()
-
-    private val _config = MutableStateFlow(AppConfig())
-    open val config: StateFlow<AppConfig> = _config.asStateFlow()
+    // Gracias a la corrección en GunAppState, la inicialización puede ser simple.
+    // El estado por defecto YA es válido (munición llena).
+    private val _state = MutableStateFlow(GunAppState())
+    val state: StateFlow<GunAppState> = _state.asStateFlow()
 
     private var fireJob: Job? = null
-    private var isFiringState = false
 
     private var soundPlayer: MediaPlayer? = null
     private val vibrator: Vibrator
@@ -54,7 +48,6 @@ open class GunViewModel(application: Application) : AndroidViewModel(application
     init {
         val context = getApplication<Application>().applicationContext
 
-        // Inicialización del Vibrador (sin cambios, ya era correcta)
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
             vibratorManager.defaultVibrator
@@ -62,157 +55,109 @@ open class GunViewModel(application: Application) : AndroidViewModel(application
             @Suppress("DEPRECATION")
             context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         }
-
-        // Inicialización de la Cámara (sin cambios, ya era correcta)
         cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        cameraId = try { // ✅ 4. Añadimos try-catch por si hay problemas de seguridad al listar cámaras
+        cameraId = try {
             cameraManager.cameraIdList.firstOrNull {
-                cameraManager.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+                cameraManager.getCameraCharacteristics(it)[android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE] == true
             }
-        } catch(e: CameraAccessException) {
-            println("Error al acceder a la cámara para buscar flash: ${e.message}")
-            null
-        }
+        } catch(e: CameraAccessException) { null }
 
-        initializeSoundPlayer()
+        initializeSoundPlayer(context)
 
+        // Carga la configuración guardada, si existe.
         viewModelScope.launch {
-            configDao.getConfigFlow().collect { loadedConfig ->
-                if (loadedConfig != null) {
-                    _config.value = loadedConfig
-                    _maxFireDurationMs.value = loadedConfig.fireDuration
-                    _fireRemainingMs.value = loadedConfig.fireDuration
-                    soundPlayer?.setVolume(loadedConfig.soundVolume, loadedConfig.soundVolume)
+            val savedConfig = configDao.getConfigFlow().firstOrNull()
+            if (savedConfig != null) {
+                val fireDuration = if (savedConfig.fireDuration > 0) savedConfig.fireDuration else 3000L
+                _state.update {
+                    it.copy(
+                        config = savedConfig,
+                        maxFireDurationMs = fireDuration,
+                        fireRemainingMs = fireDuration
+                    )
                 }
+                soundPlayer?.setVolume(savedConfig.soundVolume, savedConfig.soundVolume)
             }
         }
     }
 
-    private fun initializeSoundPlayer() {
-        soundPlayer = MediaPlayer.create(getApplication(), R.raw.machine_gun).apply {
+    private fun initializeSoundPlayer(context: Context) {
+        soundPlayer = MediaPlayer.create(context, R.raw.machine_gun).apply {
             isLooping = true
-            val initialVolume = _config.value.soundVolume
-            setVolume(initialVolume, initialVolume)
+            setVolume(state.value.config.soundVolume, state.value.config.soundVolume)
         }
     }
 
-    // --- startFiring, stopFiring, reload sin cambios ---
     open fun startFiring() {
-        if (isFiringState || _fireRemainingMs.value <= 0) return
-        isFiringState = true
-        _ammo.value = 1
-        startGunEffects()
+        if (fireJob?.isActive == true || state.value.isGunEmpty) return
 
-        fireJob?.cancel()
+        startGunEffects()
         fireJob = viewModelScope.launch {
-            while (_fireRemainingMs.value > 0) {
+            while (state.value.fireRemainingMs > 0) {
                 delay(100L)
-                _fireRemainingMs.value -= 100L
-                if (_fireRemainingMs.value <= 0) {
-                    stopFiring()
-                }
+                _state.update { it.copy(fireRemainingMs = it.fireRemainingMs - 100L) }
             }
+            stopGunEffects()
         }
     }
 
     open fun stopFiring() {
-        if (!isFiringState) return
-        isFiringState = false
         fireJob?.cancel()
-        fireJob = null
         stopGunEffects()
     }
 
     open fun reload(): Boolean {
-        if (isFiringState) {
-            println("Intento de recarga fallido: el arma se está disparando.")
-            return false
-        }
-        viewModelScope.launch {
-            stopFiring()
-            _fireRemainingMs.value = _maxFireDurationMs.value
-            _ammo.value = 5
-        }
+        if (fireJob?.isActive == true) return false
+        _state.update { it.copy(fireRemainingMs = it.maxFireDurationMs) }
         return true
     }
 
-    // --- EFECTOS CORREGIDOS ---
-
     private fun startGunEffects() = viewModelScope.launch {
-        // --- Sonido (sin cambios) ---
-        if (soundPlayer?.isPlaying == false) {
-            soundPlayer?.start()
+        soundPlayer?.start()
+        val vibrationPattern = longArrayOf(0, 50, 100)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createWaveform(vibrationPattern, 0))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(vibrationPattern, 0)
         }
-
-        // --- Vibración ---
-        val vibrationPattern = longArrayOf(0, 500, 50)
-        // ✅ 5. CORRECCIÓN VIBRACIÓN: El método hasVibrator() está obsoleto.
-        // Ahora simplemente llamamos a vibrate y envolvemos en try-catch por si no hay vibrador o permisos.
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createWaveform(vibrationPattern, 0))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(vibrationPattern, 0)
-            }
-        } catch (e: Exception) {
-            println("Error al vibrar: ${e.message}")
-        }
-
-        // --- Flash ---
-        if (cameraId != null) {
-            // ✅ 6. CORRECCIÓN FLASH: Comprobamos el permiso de cámara explícitamente.
-            val hasCameraPermission = ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-            if (hasCameraPermission) {
-                try {
-                    cameraManager.setTorchMode(cameraId, true)
-                } catch (e: CameraAccessException) { // ✅ 7. CORRECCIÓN FLASH: Capturamos la excepción específica.
-                    println("Error al encender el flash (CameraAccessException): ${e.message}")
-                } catch (e: Exception) {
-                    println("Error al encender el flash: ${e.message}")
-                }
-            } else {
-                println("No se puede usar el flash: Permiso de cámara denegado.")
-            }
-        }
+        setTorch(true)
     }
 
     private fun stopGunEffects() {
-        // --- Sonido (sin cambios) ---
-        if (soundPlayer?.isPlaying == true) {
-            soundPlayer?.pause()
-            soundPlayer?.seekTo(0)
-        }
-
-        // --- Vibración ---
+        soundPlayer?.pause()
+        soundPlayer?.seekTo(0)
         vibrator.cancel()
+        setTorch(false)
+    }
 
-        // --- Flash ---
-        if (cameraId != null) {
-            // ✅ 8. CORRECCIÓN FLASH: Comprobamos el permiso también al apagar.
-            val hasCameraPermission = ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-            if (hasCameraPermission) {
-                try {
-                    cameraManager.setTorchMode(cameraId, false)
-                } catch (e: CameraAccessException) { // ✅ 9. CORRECCIÓN FLASH: Capturamos la excepción específica.
-                    println("Error al apagar el flash (CameraAccessException): ${e.message}")
-                } catch (e: Exception) {
-                    println("Error al apagar el flash: ${e.message}")
-                }
-            }
+    private fun setTorch(enable: Boolean) {
+        val hasPermission = ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (cameraId != null && hasPermission) {
+            try { cameraManager.setTorchMode(cameraId, enable) } catch (e: Exception) { /* Ignorar */ }
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        stopGunEffects()
         soundPlayer?.release()
         soundPlayer = null
+        vibrator.cancel()
+        setTorch(false)
     }
 
     open fun saveConfig(newConfig: AppConfig) {
         viewModelScope.launch {
             configDao.insertConfig(newConfig)
+            val fireDuration = if (newConfig.fireDuration > 0) newConfig.fireDuration else 3000L
+            _state.update {
+                it.copy(
+                    config = newConfig,
+                    maxFireDurationMs = fireDuration,
+                    fireRemainingMs = fireDuration
+                )
+            }
+            soundPlayer?.setVolume(newConfig.soundVolume, newConfig.soundVolume)
         }
     }
 }
