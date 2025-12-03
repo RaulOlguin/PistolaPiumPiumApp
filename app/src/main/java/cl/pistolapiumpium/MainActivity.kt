@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import cl.pistolapiumpium.data.AppDatabase
 import cl.pistolapiumpium.ui.GunAppRoute
 import cl.pistolapiumpium.ui.screens.ForumScreen
 import cl.pistolapiumpium.ui.screens.HomeScreen
@@ -22,12 +23,13 @@ import cl.pistolapiumpium.ui.theme.PistolaPiumPiumTheme
 import cl.pistolapiumpium.util.ShakeDetector
 import cl.pistolapiumpium.viewmodel.GunViewModel
 
-// La ViewModelFactory no cambia
+// SOLUCIÓN: La fábrica ahora sabe cómo obtener el DAO y pasárselo al ViewModel
 class GunViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(GunViewModel::class.java)) {
+            val dao = AppDatabase.getDatabase(application).configDao()
             @Suppress("UNCHECKED_CAST")
-            return GunViewModel(application) as T
+            return GunViewModel(application, dao) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

@@ -1,4 +1,4 @@
-// GunViewModel.kt (Versión Final Simplificada)
+// GunViewModel.kt (Versión con Inyección de Dependencias)
 
 package cl.pistolapiumpium.viewmodel
 
@@ -15,10 +15,13 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import cl.pistolapiumpium.R
 import cl.pistolapiumpium.data.AppConfig
 import cl.pistolapiumpium.data.AppDatabase
+import cl.pistolapiumpium.data.ConfigDao
 import cl.pistolapiumpium.ui.GunAppState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -29,18 +32,15 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-open class GunViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = AppDatabase.getDatabase(application.applicationContext)
-    private val configDao = db.configDao()
+// SOLUCIÓN: El ViewModel ahora RECIBE el ConfigDao, no lo crea.
+open class GunViewModel(application: Application, private val configDao: ConfigDao) : AndroidViewModel(application) {
 
-    // Gracias a la corrección en GunAppState, la inicialización puede ser simple.
-    // El estado por defecto YA es válido (munición llena).
     private val _state = MutableStateFlow(GunAppState())
     val state: StateFlow<GunAppState> = _state.asStateFlow()
 
     private var fireJob: Job? = null
 
-    private var soundPlayer: MediaPlayer? = null
+    protected open var soundPlayer: MediaPlayer? = null
     private val vibrator: Vibrator
     private val cameraManager: CameraManager
     private val cameraId: String?
@@ -64,7 +64,6 @@ open class GunViewModel(application: Application) : AndroidViewModel(application
 
         initializeSoundPlayer(context)
 
-        // Carga la configuración guardada, si existe.
         viewModelScope.launch {
             val savedConfig = configDao.getConfigFlow().firstOrNull()
             if (savedConfig != null) {
@@ -81,11 +80,15 @@ open class GunViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun initializeSoundPlayer(context: Context) {
+    protected open fun initializeSoundPlayer(context: Context) {
         soundPlayer = MediaPlayer.create(context, R.raw.machine_gun).apply {
             isLooping = true
             setVolume(state.value.config.soundVolume, state.value.config.soundVolume)
         }
+    }
+
+    protected open fun hasCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
     }
 
     open fun startFiring() {
@@ -132,8 +135,7 @@ open class GunViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun setTorch(enable: Boolean) {
-        val hasPermission = ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        if (cameraId != null && hasPermission) {
+        if (cameraId != null && hasCameraPermission()) {
             try { cameraManager.setTorchMode(cameraId, enable) } catch (e: Exception) { /* Ignorar */ }
         }
     }
@@ -159,5 +161,18 @@ open class GunViewModel(application: Application) : AndroidViewModel(application
             }
             soundPlayer?.setVolume(newConfig.soundVolume, newConfig.soundVolume)
         }
+    }
+}
+
+// --- FÁBRICA PARA CREAR EL VIEWMODEL ---
+// Esta clase le enseña a Android cómo crear tu GunViewModel ahora que tiene un nuevo parámetro
+class GunViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(GunViewModel::class.java)) {
+            val dao = AppDatabase.getDatabase(application).configDao()
+            @Suppress("UNCHECKED_CAST")
+            return GunViewModel(application, dao) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
