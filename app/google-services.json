@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "1008546876292",
+    "project_id": "foro-base-proyecto",
+    "storage_bucket": "foro-base-proyecto.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1008546876292:android:b58ff9ad758838eeb3abd1",
+        "android_client_info": {
+          "package_name": "cl.pistolapiumpium"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1008546876292-gb52643v1rnemgpqnlib42qa3a3j4fi3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMehWPWVuZCf-z80QmQWEZ-rweLAyrWsY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1008546876292-gb52643v1rnemgpqnlib42qa3a3j4fi3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1008546876292:android:d0e7205d0737cb84b3abd1",
+        "android_client_info": {
+          "package_name": "cl.pistolapiumpium2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1008546876292-gb52643v1rnemgpqnlib42qa3a3j4fi3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMehWPWVuZCf-z80QmQWEZ-rweLAyrWsY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1008546876292-gb52643v1rnemgpqnlib42qa3a3j4fi3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
